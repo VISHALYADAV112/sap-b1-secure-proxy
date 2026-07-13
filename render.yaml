@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: sap-b1-proxy
+    env: python
+    buildCommand: pip install --no-cache-dir -r requirements.txt
+    startCommand: python sap_proxy.py
+    healthCheckPath: /health
+    envVars:
+      - key: API_KEYS
+        generateValue: true
+      - key: SAP_SERVER
+        sync: false
+      - key: SAP_PORT
+        value: "50000"
+      - key: SAP_COMPANY_DB
+        sync: false
+      - key: SAP_USERNAME
+        sync: false
+      - key: SAP_PASSWORD
+        sync: false
+      - key: SAP_VERIFY_SSL
+        value: "true"
+      - key: SAP_ALLOWED_METHODS
+        value: GET,HEAD
+      - key: SAP_ALLOWED_PATH_PREFIXES
+        value: /b1s/v1/
+      - key: SAP_BLOCKED_PATHS
+        value: /b1s/v1/Login,/b1s/v1/Logout
+      - key: ALLOW_QUERY_API_KEY
+        value: "false"
