@@ -1,0 +1,36 @@
+name: Build Windows executable
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements-build.txt
+
+      - name: Run tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Build executable
+        run: python -m PyInstaller --noconfirm --clean SAPB1Proxy.spec
+
+      - name: Upload executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: SAPB1Proxy-Windows
+          path: dist/SAPB1Proxy.exe
+          if-no-files-found: error

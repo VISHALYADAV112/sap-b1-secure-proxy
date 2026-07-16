@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SAP B1 Proxy</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"><span></span><span></span></div>
+        <div>
+          <strong>SAP B1 Proxy</strong>
+          <small>Desktop bridge</small>
+        </div>
+      </div>
+
+      <nav class="nav-list" aria-label="Application sections">
+        <button class="nav-button active" data-section="dashboard">
+          <span class="nav-icon">01</span><span>Status</span>
+        </button>
+        <button class="nav-button" data-section="connection">
+          <span class="nav-icon">02</span><span>Connection</span>
+        </button>
+        <button class="nav-button" data-section="tunnel">
+          <span class="nav-icon">03</span><span>Tunnel</span>
+        </button>
+        <button class="nav-button" data-section="powerbi">
+          <span class="nav-icon">04</span><span>Power BI</span>
+        </button>
+        <button class="nav-button" data-section="logs">
+          <span class="nav-icon">05</span><span>Logs</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button id="themeButton" class="icon-text-button secondary" title="Switch color theme">
+          <span aria-hidden="true">◐</span><span>Theme</span>
+        </button>
+        <div class="platform-label" id="platformLabel">Desktop</div>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <div class="service-summary">
+          <span class="status-dot offline" id="globalStatusDot"></span>
+          <div>
+            <strong id="globalStatusText">Stopped</strong>
+            <small id="globalStatusDetail">Services are offline</small>
+          </div>
+        </div>
+        <div class="command-bar">
+          <button id="startButton" class="command primary">
+            <span class="command-symbol" aria-hidden="true">▶</span>
+            <span>Start</span>
+          </button>
+          <button id="stopButton" class="command danger" disabled>
+            <span class="command-symbol" aria-hidden="true">■</span>
+            <span>Stop</span>
+          </button>
+        </div>
+      </header>
+
+      <div id="notification" class="notification" role="status" aria-live="polite"></div>
+
+      <section id="dashboard" class="view active">
+        <div class="view-heading">
+          <div>
+            <p class="eyebrow">System overview</p>
+            <h1>Status Dashboard</h1>
+          </div>
+          <button id="refreshButton" class="icon-button" title="Refresh status" aria-label="Refresh status">↻</button>
+        </div>
+
+        <div class="metric-grid">
+          <article class="metric-card">
+            <span class="metric-label">SAP session</span>
+            <strong id="sapMetric">Disconnected</strong>
+            <span class="metric-state offline" id="sapMetricState">OFFLINE</span>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">Local proxy</span>
+            <strong id="proxyMetric">Stopped</strong>
+            <span class="metric-state offline" id="proxyMetricState">OFFLINE</span>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">Secure tunnel</span>
+            <strong id="tunnelMetric">Stopped</strong>
+            <span class="metric-state offline" id="tunnelMetricState">OFFLINE</span>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">Login startup</span>
+            <strong id="startupMetric">Disabled</strong>
+            <span class="metric-state neutral" id="startupMetricState">MANUAL</span>
+          </article>
+        </div>
+
+        <div class="url-band">
+          <div class="band-heading">
+            <h2>Endpoints</h2>
+            <span id="endpointState">Unavailable</span>
+          </div>
+          <div class="url-row">
+            <label for="localUrl">Local URL</label>
+            <input id="localUrl" readonly value="http://127.0.0.1:5000">
+            <button class="icon-button copy-button" data-copy-target="localUrl" title="Copy local URL" aria-label="Copy local URL">⧉</button>
+          </div>
+          <div class="url-row">
+            <label for="publicUrl">Public URL</label>
+            <input id="publicUrl" readonly placeholder="Starts with the ngrok tunnel">
+            <button class="icon-button copy-button" data-copy-target="publicUrl" title="Copy public URL" aria-label="Copy public URL">⧉</button>
+          </div>
+        </div>
+
+        <div class="dashboard-log">
+          <div class="band-heading">
+            <h2>Recent activity</h2>
+            <button class="text-button" data-section-link="logs">Open logs</button>
+          </div>
+          <div id="recentLog" class="recent-log-line">Waiting for desktop bridge...</div>
+        </div>
+      </section>
+
+      <section id="connection" class="view">
+        <div class="view-heading">
+          <div>
+            <p class="eyebrow">SAP Business One</p>
+            <h1>Connection Settings</h1>
+          </div>
+          <button id="testConnectionButton" class="command secondary">Test connection</button>
+        </div>
+
+        <form id="connectionForm" class="settings-form">
+          <div class="form-grid">
+            <label class="field field-wide">
+              <span>SAP server</span>
+              <input name="sap_server" autocomplete="off" placeholder="192.168.1.20" required>
+            </label>
+            <label class="field">
+              <span>Service Layer port</span>
+              <input name="sap_port" type="number" min="1" max="65535" required>
+            </label>
+            <label class="field">
+              <span>Language code</span>
+              <input name="sap_language" type="number" min="1" max="99" required>
+            </label>
+            <label class="field">
+              <span>Company database</span>
+              <input name="sap_company_db" autocomplete="off" required>
+            </label>
+            <label class="field">
+              <span>Username</span>
+              <input name="sap_username" autocomplete="username" required>
+            </label>
+            <label class="field field-wide">
+              <span>Password</span>
+              <input name="sap_password" type="password" autocomplete="current-password" required>
+            </label>
+          </div>
+
+          <div class="settings-divider"></div>
+
+          <div class="form-grid">
+            <label class="toggle-field field-wide">
+              <input name="sap_verify_ssl" type="checkbox">
+              <span class="toggle-control"></span>
+              <span>
+                <strong>Verify SAP certificate</strong>
+                <small id="tlsModeText">Certificate verification enabled</small>
+              </span>
+            </label>
+            <label class="field field-wide">
+              <span>CA certificate bundle</span>
+              <div class="input-action">
+                <input name="sap_ca_bundle" autocomplete="off" placeholder="Optional .cer, .crt or .pem path">
+                <button type="button" id="browseCertificateButton" class="secondary">Browse</button>
+              </div>
+            </label>
+            <label class="field">
+              <span>Request timeout (seconds)</span>
+              <input name="request_timeout_seconds" type="number" min="5" max="300">
+            </label>
+            <label class="field">
+              <span>Response limit (MB)</span>
+              <input name="max_response_mb" type="number" min="1" max="500">
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="primary save-settings">Save connection</button>
+          </div>
+        </form>
+      </section>
+
+      <section id="tunnel" class="view">
+        <div class="view-heading">
+          <div>
+            <p class="eyebrow">Secure transport</p>
+            <h1>Tunnel Configuration</h1>
+          </div>
+          <span class="section-status" id="ngrokBinaryStatus">ngrok not checked</span>
+        </div>
+
+        <form id="tunnelForm" class="settings-form">
+          <div class="form-grid">
+            <label class="field field-wide">
+              <span>ngrok authtoken</span>
+              <input name="ngrok_authtoken" type="password" autocomplete="off">
+            </label>
+            <label class="field">
+              <span>Assigned domain</span>
+              <input name="ngrok_domain" autocomplete="off" placeholder="example.ngrok-free.app">
+            </label>
+            <label class="field">
+              <span>Local proxy port</span>
+              <input name="local_port" type="number" min="1" max="65535">
+            </label>
+            <label class="toggle-field field-wide">
+              <input name="start_tunnel" type="checkbox">
+              <span class="toggle-control"></span>
+              <span>
+                <strong>Start public tunnel</strong>
+                <small>Local proxy remains bound to 127.0.0.1</small>
+              </span>
+            </label>
+          </div>
+
+          <div class="settings-divider"></div>
+
+          <div class="api-key-block">
+            <label class="field">
+              <span>Proxy API key</span>
+              <div class="input-action">
+                <input name="api_key" type="password" autocomplete="off" readonly>
+                <button type="button" id="copyApiKeyButton" class="icon-button" title="Copy API key" aria-label="Copy API key">⧉</button>
+              </div>
+            </label>
+            <button type="button" id="rotateApiKeyButton" class="secondary">Rotate key</button>
+          </div>
+
+          <div class="startup-band">
+            <div>
+              <strong>Login startup</strong>
+              <span id="startupDescription">Manual start</span>
+            </div>
+            <button type="button" id="startupButton" class="secondary">Enable startup</button>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="primary save-settings">Save tunnel settings</button>
+          </div>
+        </form>
+      </section>
+
+      <section id="powerbi" class="view">
+        <div class="view-heading">
+          <div>
+            <p class="eyebrow">Query integration</p>
+            <h1>Power BI Integration</h1>
+          </div>
+          <button id="generateCodeButton" class="command secondary">Generate M code</button>
+        </div>
+
+        <div class="powerbi-layout">
+          <div class="query-fields">
+            <label class="field">
+              <span>Entity</span>
+              <input id="powerBiEntity" placeholder="Invoices">
+            </label>
+            <label class="field">
+              <span>$select fields</span>
+              <textarea id="powerBiSelect" rows="5"></textarea>
+            </label>
+            <label class="field">
+              <span>Base URL</span>
+              <input id="powerBiUrl" placeholder="Uses the active public URL">
+            </label>
+          </div>
+          <div class="code-panel">
+            <div class="code-toolbar">
+              <span>Power Query M</span>
+              <button id="copyCodeButton" class="icon-text-button secondary">
+                <span aria-hidden="true">⧉</span><span>Copy</span>
+              </button>
+            </div>
+            <pre id="powerBiCode"><code>Start the tunnel, then generate M code.</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section id="logs" class="view logs-view">
+        <div class="view-heading">
+          <div>
+            <p class="eyebrow">Runtime events</p>
+            <h1>Application Logs</h1>
+          </div>
+          <div class="log-controls">
+            <select id="logLevel" aria-label="Log level filter">
+              <option value="ALL">All levels</option>
+              <option value="INFO">Info</option>
+              <option value="WARNING">Warnings</option>
+              <option value="ERROR">Errors</option>
+            </select>
+            <button id="clearLogsButton" class="secondary">Clear view</button>
+          </div>
+        </div>
+        <div id="logTerminal" class="log-terminal" role="log" aria-live="polite"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

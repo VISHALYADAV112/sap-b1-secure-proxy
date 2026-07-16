@@ -1,0 +1,15 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+.coverage
+.pytest_cache/
+.ruff_cache/
+.venv/
+build/
+dist/
+*.spec.local
+config.json
+secrets.json
+secrets.dat
+ngrok.yml
+ngrok.exe

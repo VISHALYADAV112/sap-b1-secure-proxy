@@ -2,7 +2,7 @@ services:
   - type: web
     name: sap-b1-proxy
     env: python
-    buildCommand: pip install --no-cache-dir -r requirements.txt
+    buildCommand: pip install --no-cache-dir -r requirements-render.txt
     startCommand: python sap_proxy.py
     healthCheckPath: /health
     envVars:
