@@ -13,12 +13,13 @@ from desktop_app.controller import AppController
 from desktop_app.paths import resource_path
 from desktop_app.tray import TrayIcon
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    filename="/tmp/sap_proxy.log",
-    filemode="a",
-)
+
+def configure_logging() -> None:
+    """Keep bootstrap logging console-safe; EventLog owns persistent app logs."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+    )
 
 
 def parse_args() -> argparse.Namespace:
@@ -118,6 +119,7 @@ def run_desktop(controller: AppController, args: argparse.Namespace) -> int:
 
 def main() -> int:
     args = parse_args()
+    configure_logging()
     controller = AppController()
     if args.headless:
         return run_headless(controller, args.autostart)

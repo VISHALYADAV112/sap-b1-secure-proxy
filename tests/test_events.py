@@ -2,8 +2,10 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from desktop_app.events import EventLog, redact
+import main
 
 
 class EventLogTest(unittest.TestCase):
@@ -27,6 +29,12 @@ class EventLogTest(unittest.TestCase):
             EventLog(log_path=path).add("INFO", "password=secret")
             entry = json.loads(path.read_text().strip())
             self.assertEqual(entry["message"], "password=[redacted]")
+
+    def test_bootstrap_logging_does_not_open_a_fixed_path(self):
+        with patch("main.logging.basicConfig") as basic_config:
+            main.configure_logging()
+        _, kwargs = basic_config.call_args
+        self.assertNotIn("filename", kwargs)
 
 
 if __name__ == "__main__":

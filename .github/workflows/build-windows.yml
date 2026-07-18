@@ -28,6 +28,9 @@ jobs:
       - name: Build executable
         run: python -m PyInstaller --noconfirm --clean SAPB1Proxy.spec
 
+      - name: Smoke test executable bootstrap
+        run: .\dist\SAPB1Proxy.exe --help
+
       - name: Upload executable
         uses: actions/upload-artifact@v4
         with:
