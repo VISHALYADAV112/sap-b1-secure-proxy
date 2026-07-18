@@ -8,6 +8,10 @@
     logs: [],
     latestLogId: 0,
     notificationTimer: null,
+    uiWired: false,
+    bridgeInitializing: false,
+    bridgeFailed: false,
+    bridgeWaitTimer: null,
   };
 
   const integerFields = new Set([
@@ -304,6 +308,10 @@
   }
 
   function wireEvents() {
+    if (state.uiWired) {
+      return;
+    }
+    state.uiWired = true;
     document.querySelectorAll(".nav-button").forEach((button) => {
       button.addEventListener("click", () => setSection(button.dataset.section));
     });
@@ -384,9 +392,11 @@
     });
   }
 
-  async function initialize() {
-    wireEvents();
-    applyTheme(window.localStorage.getItem("sapProxyTheme") || "dark");
+  async function initializeBridge() {
+    if (state.ready || state.bridgeInitializing || state.bridgeFailed || !api()) {
+      return;
+    }
+    state.bridgeInitializing = true;
     try {
       const initial = await callApi("get_initial_state");
       state.ready = true;
@@ -395,11 +405,30 @@
       applyRuntime(initial);
       window.setInterval(refreshState, 900);
     } catch (error) {
+      state.bridgeFailed = true;
       showNotification(error.message, true);
       document.getElementById("globalStatusText").textContent = "Bridge unavailable";
       document.getElementById("globalStatusDetail").textContent = error.message;
+    } finally {
+      state.bridgeInitializing = false;
+      if (state.bridgeWaitTimer) {
+        window.clearInterval(state.bridgeWaitTimer);
+        state.bridgeWaitTimer = null;
+      }
     }
   }
 
-  window.addEventListener("pywebviewready", initialize, { once: true });
+  function bootstrapUi() {
+    wireEvents();
+    applyTheme(window.localStorage.getItem("sapProxyTheme") || "dark");
+    initializeBridge();
+    state.bridgeWaitTimer = window.setInterval(initializeBridge, 250);
+  }
+
+  window.addEventListener("pywebviewready", initializeBridge);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bootstrapUi, { once: true });
+  } else {
+    bootstrapUi();
+  }
 })();

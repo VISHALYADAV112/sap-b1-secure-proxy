@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
 import logging
 import signal
 import sys
@@ -20,6 +21,15 @@ def configure_logging() -> None:
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",
     )
+
+
+def show_renderer_error(message: str) -> None:
+    if sys.platform != "win32":
+        return
+    try:
+        ctypes.windll.user32.MessageBoxW(0, message, "SAP B1 Proxy", 0x10)
+    except Exception:
+        pass
 
 
 def parse_args() -> argparse.Namespace:
@@ -109,7 +119,17 @@ def run_desktop(controller: AppController, args: argparse.Namespace) -> int:
         threading.Thread(target=delayed_start, name="auto-start", daemon=True).start()
 
     try:
-        webview.start(debug=args.debug)
+        renderer = "edgechromium" if sys.platform == "win32" else None
+        webview.start(gui=renderer, debug=args.debug)
+    except Exception as exc:
+        message = (
+            "The desktop renderer could not start. "
+            "Install or repair Microsoft Edge WebView2 Runtime, then try again.\n\n"
+            f"Details: {exc}"
+        )
+        controller.events.error(message)
+        show_renderer_error(message)
+        return 3
     finally:
         if not controller.exit_requested:
             controller.shutdown()

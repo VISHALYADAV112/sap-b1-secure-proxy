@@ -59,6 +59,8 @@ The executable is written to `dist\SAPB1Proxy.exe`. `build_windows.bat` runs the
 
 The application downloads ngrok into its local application-data directory when no `ngrok` executable is available on `PATH`.
 
+The Windows executable uses the Microsoft Edge WebView2 renderer. Windows installations without WebView2 must install that runtime before opening the GUI.
+
 ## Startup
 
 Windows uses a per-user Task Scheduler job named `SAPB1Proxy_AutoStart`. It runs after login with a 30-second delay and opens minimized to the tray. It does not require administrator privileges.
