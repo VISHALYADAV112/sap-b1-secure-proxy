@@ -5,7 +5,7 @@ import threading
 from pathlib import Path
 from typing import Any, Callable
 
-from .config import AppConfig, ConfigError, ConfigStore
+from .config import SECRET_FIELDS, AppConfig, ConfigError, ConfigStore
 from .events import EventLog
 from .platform_services import StartupError, get_startup_service
 from .powerbi import generate_m_code
@@ -61,9 +61,12 @@ class AppController:
         return ""
 
     def initial_state(self) -> dict[str, Any]:
+        config = self.config.to_dict(include_secrets=True)
+        config["sap_password"] = ""
+        config["ngrok_authtoken"] = ""
         return {
             **self.state(),
-            "config": self.config.to_dict(include_secrets=True),
+            "config": config,
             "platform": __import__("platform").system(),
         }
 
@@ -88,6 +91,9 @@ class AppController:
             if self._busy or self.running:
                 raise ConfigError("Stop the proxy before changing settings")
             merged = self.config.to_dict(include_secrets=True)
+            for key in SECRET_FIELDS:
+                if key in payload and not payload[key]:
+                    del payload[key]
             merged.update(payload)
             updated = AppConfig.from_dict(merged)
             updated.ensure_api_key()
@@ -96,7 +102,10 @@ class AppController:
             self.config = updated
             self._last_error = ""
             self.events.info("Configuration saved")
-            return self.config.to_dict(include_secrets=True)
+            result = self.config.to_dict(include_secrets=True)
+            result["sap_password"] = ""
+            result["ngrok_authtoken"] = ""
+            return result
 
     def generate_api_key(self) -> str:
         with self._lock:
