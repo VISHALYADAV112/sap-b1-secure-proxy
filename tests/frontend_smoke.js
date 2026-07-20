@@ -51,6 +51,10 @@ const navButtons = ["dashboard", "connection", "tunnel", "powerbi", "logs"].map(
       dataset: { section },
     }),
 );
+const saveButtons = [
+  new Element({ classes: ["primary", "save-settings"], type: "submit" }),
+  new Element({ classes: ["primary", "save-settings"], type: "submit" }),
+];
 
 const elements = new Map();
 const requiredIds = [
@@ -100,6 +104,7 @@ const document = {
     if (selector === "[data-section-link]") return [];
     if (selector === "[name]") return [];
     if (selector === ".copy-button") return [];
+    if (selector === ".save-settings") return saveButtons;
     return [];
   },
   querySelector(selector) {
@@ -140,5 +145,9 @@ assert(elements.get("startButton").disabled, "Start button was enabled before br
 assert(
   elements.get("testConnectionButton").disabled,
   "Test connection button was enabled before bridge initialization",
+);
+assert(
+  saveButtons.every((button) => !button.disabled),
+  "Save buttons must remain clickable so validation errors can be shown",
 );
 console.log("frontend navigation smoke test passed");

@@ -123,6 +123,12 @@
     if (!state.ready) {
       throw new Error("Application is still loading. Please wait and try again.");
     }
+    if (state.runtime.busy) {
+      throw new Error("Wait for the current operation to finish before saving settings.");
+    }
+    if (state.runtime.running) {
+      throw new Error("Stop the proxy before changing settings.");
+    }
     const result = await callApi("save_config", collectConfig());
     populateConfig(result.result || result.config || collectConfig());
     if (showMessage) {
@@ -177,9 +183,7 @@
       !state.ready || busy || (!running && !current.tunnel_running);
     document.getElementById("testConnectionButton").disabled = !state.ready || busy || running;
     document.getElementById("refreshButton").disabled = !state.ready || busy;
-    document.querySelectorAll(".save-settings, #rotateApiKeyButton").forEach((button) => {
-      button.disabled = !state.ready || busy || running;
-    });
+    document.getElementById("rotateApiKeyButton").disabled = !state.ready || busy || running;
     document.getElementById("startupButton").disabled = !state.ready || busy;
     document.getElementById("browseCertificateButton").disabled =
       !state.ready || busy || running;
@@ -456,9 +460,6 @@
     wireEvents();
     bridgeControlIds.forEach((id) => {
       document.getElementById(id).disabled = true;
-    });
-    document.querySelectorAll(".save-settings").forEach((button) => {
-      button.disabled = true;
     });
     applyTheme(window.localStorage.getItem("sapProxyTheme") || "dark");
     initializeBridge();
