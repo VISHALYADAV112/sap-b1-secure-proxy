@@ -1,3 +1,4 @@
+certifi>=2024,<2026
 Flask>=3.0,<4
 Pillow>=10,<13
 pystray>=0.19,<1

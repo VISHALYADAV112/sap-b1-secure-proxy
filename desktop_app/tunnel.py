@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import platform
+import ssl
 import shutil
 import stat
 import subprocess
@@ -12,6 +13,11 @@ import urllib.error
 import urllib.request
 import zipfile
 from pathlib import Path
+
+try:
+    import certifi
+except ImportError:
+    certifi = None  # fall back to default SSL context
 
 from .config import AppConfig
 from .events import EventLog
@@ -84,8 +90,9 @@ class TunnelManager:
         archive_path = self.root / "ngrok-download.zip"
         self.events.info(f"Downloading ngrok for {key[0]} {key[1]}")
         request = urllib.request.Request(download_url, headers={"User-Agent": "SAPB1Proxy/0.1"})
+        ssl_context = ssl.create_default_context(cafile=certifi.where()) if certifi else None
         try:
-            with urllib.request.urlopen(request, timeout=60) as response:
+            with urllib.request.urlopen(request, timeout=60, context=ssl_context) as response:
                 expected = response.headers.get("Content-Length")
                 if expected and int(expected) > 100 * 1024 * 1024:
                     raise TunnelError("ngrok download is larger than the allowed limit")
