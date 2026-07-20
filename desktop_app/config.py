@@ -21,6 +21,27 @@ class ConfigError(ValueError):
 ENTITY_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(?:\([^/?#]*\))?$")
 DOMAIN_PATTERN = re.compile(r"^[A-Za-z0-9.-]+$")
 SECRET_FIELDS = ("sap_password", "api_key", "ngrok_authtoken")
+INTEGER_FIELD_LABELS = {
+    "sap_port": "SAP port",
+    "sap_language": "SAP language",
+    "local_port": "Local proxy port",
+    "request_timeout_seconds": "Request timeout",
+    "max_response_mb": "Maximum response size",
+}
+
+
+def _coerce_integer(value: Any, label: str) -> int:
+    if value is None or isinstance(value, bool) or (
+        isinstance(value, str) and not value.strip()
+    ):
+        raise ConfigError(f"{label} is required")
+    try:
+        converted = int(value)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ConfigError(f"{label} must be an integer") from exc
+    if isinstance(value, float) and not value.is_integer():
+        raise ConfigError(f"{label} must be an integer")
+    return converted
 
 
 @dataclass
@@ -103,15 +124,9 @@ class AppConfig:
     def from_dict(cls, data: dict[str, Any]) -> AppConfig:
         allowed = {field.name for field in fields(cls)}
         values = {key: value for key, value in data.items() if key in allowed}
-        for key in (
-            "sap_port",
-            "sap_language",
-            "local_port",
-            "request_timeout_seconds",
-            "max_response_mb",
-        ):
+        for key, label in INTEGER_FIELD_LABELS.items():
             if key in values:
-                values[key] = int(values[key])
+                values[key] = _coerce_integer(values[key], label)
         for key in ("sap_verify_ssl", "start_tunnel"):
             if key in values:
                 values[key] = bool(values[key])

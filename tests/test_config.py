@@ -72,6 +72,14 @@ class ConfigTest(unittest.TestCase):
         with self.assertRaises(ConfigError):
             config.validate(require_connection=True)
 
+    def test_rejects_missing_numeric_setting_cleanly(self):
+        with self.assertRaisesRegex(ConfigError, "SAP port is required"):
+            AppConfig.from_dict({"sap_port": None})
+
+    def test_rejects_invalid_numeric_setting_cleanly(self):
+        with self.assertRaisesRegex(ConfigError, "Local proxy port must be an integer"):
+            AppConfig.from_dict({"local_port": "not-a-port"})
+
 
 if __name__ == "__main__":
     unittest.main()

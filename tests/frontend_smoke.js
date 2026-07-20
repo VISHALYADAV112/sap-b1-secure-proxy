@@ -136,4 +136,9 @@ vm.runInThisContext(fs.readFileSync("web/app.js", "utf8"), { filename: "web/app.
 navButtons[1].click();
 assert(sections[1].classList.values.has("active"), "Connection tab did not activate");
 assert(!sections[0].classList.values.has("active"), "Dashboard tab remained active");
+assert(elements.get("startButton").disabled, "Start button was enabled before bridge initialization");
+assert(
+  elements.get("testConnectionButton").disabled,
+  "Test connection button was enabled before bridge initialization",
+);
 console.log("frontend navigation smoke test passed");

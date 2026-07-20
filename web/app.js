@@ -21,10 +21,27 @@
     "request_timeout_seconds",
     "max_response_mb",
   ]);
+  const integerFieldLabels = {
+    sap_port: "SAP port",
+    sap_language: "SAP language",
+    local_port: "Local proxy port",
+    request_timeout_seconds: "Request timeout",
+    max_response_mb: "Maximum response size",
+  };
   const booleanFields = new Set(["sap_verify_ssl", "start_tunnel"]);
   const configForms = [
     document.getElementById("connectionForm"),
     document.getElementById("tunnelForm"),
+  ];
+  const bridgeControlIds = [
+    "startButton",
+    "stopButton",
+    "testConnectionButton",
+    "refreshButton",
+    "rotateApiKeyButton",
+    "startupButton",
+    "browseCertificateButton",
+    "generateCodeButton",
   ];
 
   function api() {
@@ -85,7 +102,16 @@
       if (element.type === "checkbox") {
         payload[key] = element.checked;
       } else if (integerFields.has(key)) {
-        payload[key] = Number.parseInt(element.value, 10);
+        const rawValue = element.value.trim();
+        const label = integerFieldLabels[key] || "Value";
+        if (!rawValue) {
+          throw new Error(`${label} is required`);
+        }
+        const value = Number(rawValue);
+        if (!Number.isInteger(value)) {
+          throw new Error(`${label} must be an integer`);
+        }
+        payload[key] = value;
       } else {
         payload[key] = element.value;
       }
@@ -94,6 +120,9 @@
   }
 
   async function saveConfig(showMessage = true) {
+    if (!state.ready) {
+      throw new Error("Application is still loading. Please wait and try again.");
+    }
     const result = await callApi("save_config", collectConfig());
     populateConfig(result.result || result.config || collectConfig());
     if (showMessage) {
@@ -143,13 +172,18 @@
     document.getElementById("endpointState").textContent =
       current.public_url ? "Public and local" : running ? "Local only" : "Unavailable";
 
-    document.getElementById("startButton").disabled = busy || running;
-    document.getElementById("stopButton").disabled = busy || (!running && !current.tunnel_running);
-    document.getElementById("testConnectionButton").disabled = busy || running;
-    document.getElementById("refreshButton").disabled = busy;
+    document.getElementById("startButton").disabled = !state.ready || busy || running;
+    document.getElementById("stopButton").disabled =
+      !state.ready || busy || (!running && !current.tunnel_running);
+    document.getElementById("testConnectionButton").disabled = !state.ready || busy || running;
+    document.getElementById("refreshButton").disabled = !state.ready || busy;
     document.querySelectorAll(".save-settings, #rotateApiKeyButton").forEach((button) => {
-      button.disabled = busy || running;
+      button.disabled = !state.ready || busy || running;
     });
+    document.getElementById("startupButton").disabled = !state.ready || busy;
+    document.getElementById("browseCertificateButton").disabled =
+      !state.ready || busy || running;
+    document.getElementById("generateCodeButton").disabled = !state.ready;
 
     const startupButton = document.getElementById("startupButton");
     startupButton.textContent = current.startup_enabled ? "Disable startup" : "Enable startup";
@@ -420,6 +454,12 @@
 
   function bootstrapUi() {
     wireEvents();
+    bridgeControlIds.forEach((id) => {
+      document.getElementById(id).disabled = true;
+    });
+    document.querySelectorAll(".save-settings").forEach((button) => {
+      button.disabled = true;
+    });
     applyTheme(window.localStorage.getItem("sapProxyTheme") || "dark");
     initializeBridge();
     state.bridgeWaitTimer = window.setInterval(initializeBridge, 250);
