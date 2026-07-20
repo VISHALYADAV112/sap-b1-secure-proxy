@@ -65,6 +65,20 @@
       </header>
 
       <div id="notification" class="notification" role="status" aria-live="polite"></div>
+      <aside id="bridgeDiagnostic" class="bridge-diagnostic visible" role="status" aria-live="polite">
+        <div class="bridge-diagnostic-heading">
+          <span id="bridgeDiagnosticDot" class="status-dot busy"></span>
+          <div>
+            <strong id="bridgeDiagnosticTitle">Starting desktop bridge</strong>
+            <small id="bridgeDiagnosticDetail">Waiting for the Python API</small>
+          </div>
+        </div>
+        <div class="bridge-diagnostic-meta">
+          <code id="bridgeDiagnosticElapsed">0s</code>
+          <button id="retryBridgeButton" class="secondary" type="button" hidden>Retry</button>
+        </div>
+        <code id="bridgeDiagnosticLogPath" class="bridge-log-path">%LOCALAPPDATA%\SAPB1Proxy\logs\proxy.log</code>
+      </aside>
 
       <section id="dashboard" class="view active">
         <div class="view-heading">

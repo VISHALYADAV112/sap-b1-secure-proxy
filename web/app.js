@@ -10,8 +10,13 @@
     notificationTimer: null,
     uiWired: false,
     bridgeInitializing: false,
-    bridgeFailed: false,
     bridgeWaitTimer: null,
+    bridgeElapsedTimer: null,
+    bridgeRetryAt: 0,
+    bridgeAttempts: 0,
+    bridgeStartedAt: Date.now(),
+    bridgeStalled: false,
+    bridgeLastError: "",
   };
 
   const integerFields = new Set([
@@ -48,6 +53,15 @@
     return window.pywebview && window.pywebview.api;
   }
 
+  function bridgeApiReady() {
+    const bridge = api();
+    return Boolean(
+      bridge &&
+      typeof bridge.ping === "function" &&
+      typeof bridge.get_initial_state === "function"
+    );
+  }
+
   async function callApi(method, ...args) {
     if (!api() || typeof api()[method] !== "function") {
       throw new Error("Desktop bridge is unavailable");
@@ -57,6 +71,65 @@
       throw new Error((result && result.error) || "Desktop operation failed");
     }
     return result;
+  }
+
+  function callApiWithTimeout(method, timeoutMs, ...args) {
+    return new Promise((resolve, reject) => {
+      const timer = window.setTimeout(() => {
+        const error = new Error(`${method} did not respond within ${Math.round(timeoutMs / 1000)} seconds`);
+        error.name = "BridgeTimeoutError";
+        reject(error);
+      }, timeoutMs);
+      callApi(method, ...args).then(
+        (result) => {
+          window.clearTimeout(timer);
+          resolve(result);
+        },
+        (error) => {
+          window.clearTimeout(timer);
+          reject(error);
+        },
+      );
+    });
+  }
+
+  function setBridgeDiagnostic(title, detail, mode = "busy", retry = false) {
+    const panel = document.getElementById("bridgeDiagnostic");
+    panel.classList.toggle("visible", !state.ready);
+    document.getElementById("bridgeDiagnosticTitle").textContent = title;
+    document.getElementById("bridgeDiagnosticDetail").textContent = detail;
+    document.getElementById("bridgeDiagnosticDot").className = `status-dot ${mode}`;
+    document.getElementById("retryBridgeButton").hidden = !retry;
+    if (!state.ready) {
+      document.getElementById("globalStatusDot").className = `status-dot ${mode}`;
+      document.getElementById("globalStatusText").textContent = title;
+      document.getElementById("globalStatusDetail").textContent = detail;
+      document.getElementById("recentLog").textContent = `${title}: ${detail}`;
+    }
+  }
+
+  function updateBridgeElapsed() {
+    const elapsedSeconds = Math.max(0, Math.floor((Date.now() - state.bridgeStartedAt) / 1000));
+    document.getElementById("bridgeDiagnosticElapsed").textContent = `${elapsedSeconds}s`;
+    if (!state.ready && !state.bridgeInitializing && !bridgeApiReady() && elapsedSeconds >= 5) {
+      setBridgeDiagnostic(
+        "Waiting for Python API",
+        "The interface is loaded, but WebView2 has not exposed the desktop backend yet.",
+        "busy",
+        true,
+      );
+    }
+  }
+
+  function stopBridgeTimers() {
+    if (state.bridgeWaitTimer) {
+      window.clearInterval(state.bridgeWaitTimer);
+      state.bridgeWaitTimer = null;
+    }
+    if (state.bridgeElapsedTimer) {
+      window.clearInterval(state.bridgeElapsedTimer);
+      state.bridgeElapsedTimer = null;
+    }
   }
 
   function showNotification(message, isError = false) {
@@ -418,6 +491,17 @@
       }
     });
 
+    document.getElementById("retryBridgeButton").addEventListener("click", () => {
+      state.bridgeStalled = false;
+      state.bridgeRetryAt = 0;
+      state.bridgeAttempts = 0;
+      state.bridgeStartedAt = Date.now();
+      state.bridgeLastError = "";
+      setBridgeDiagnostic("Retrying desktop bridge", "Waiting for the Python API");
+      updateBridgeElapsed();
+      initializeBridge();
+    });
+
     document.getElementById("themeButton").addEventListener("click", () => {
       applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
     });
@@ -431,28 +515,64 @@
   }
 
   async function initializeBridge() {
-    if (state.ready || state.bridgeInitializing || state.bridgeFailed || !api()) {
+    if (
+      state.ready ||
+      state.bridgeInitializing ||
+      state.bridgeStalled ||
+      Date.now() < state.bridgeRetryAt
+    ) {
+      return;
+    }
+    if (!bridgeApiReady()) {
       return;
     }
     state.bridgeInitializing = true;
+    state.bridgeAttempts += 1;
     try {
-      const initial = await callApi("get_initial_state");
+      setBridgeDiagnostic(
+        "Checking Python backend",
+        `Bridge handshake attempt ${state.bridgeAttempts}`,
+      );
+      const probe = await callApiWithTimeout("ping", 5000);
+      if (probe.log_path) {
+        document.getElementById("bridgeDiagnosticLogPath").textContent = probe.log_path;
+      }
+      setBridgeDiagnostic("Loading saved settings", "Reading local configuration and runtime state");
+      const initial = await callApiWithTimeout("get_initial_state", 10000);
       state.ready = true;
       populateConfig(initial.config || {});
-      document.getElementById("platformLabel").textContent = initial.platform || "Desktop";
+      document.getElementById("platformLabel").textContent =
+        initial.platform || probe.platform || "Desktop";
       applyRuntime(initial);
+      document.getElementById("bridgeDiagnosticTitle").textContent = "Desktop bridge ready";
+      document.getElementById("bridgeDiagnosticDetail").textContent =
+        "Configuration and runtime state loaded";
+      document.getElementById("bridgeDiagnosticDot").className = "status-dot online";
+      document.getElementById("retryBridgeButton").hidden = true;
+      window.setTimeout(() => {
+        if (state.ready) {
+          document.getElementById("bridgeDiagnostic").classList.toggle("visible", false);
+        }
+      }, 900);
+      stopBridgeTimers();
       window.setInterval(refreshState, 900);
     } catch (error) {
-      state.bridgeFailed = true;
+      state.ready = false;
+      state.bridgeLastError = error.message;
+      const timedOut = error.name === "BridgeTimeoutError";
+      state.bridgeStalled = timedOut || state.bridgeAttempts >= 3;
+      state.bridgeRetryAt = Date.now() + 1500;
+      setBridgeDiagnostic(
+        timedOut ? "Python backend did not respond" : "Desktop bridge retry needed",
+        state.bridgeStalled
+          ? `${error.message}. Automatic retries are paused.`
+          : `${error.message}. Retrying shortly.`,
+        "error",
+        state.bridgeStalled,
+      );
       showNotification(error.message, true);
-      document.getElementById("globalStatusText").textContent = "Bridge unavailable";
-      document.getElementById("globalStatusDetail").textContent = error.message;
     } finally {
       state.bridgeInitializing = false;
-      if (state.bridgeWaitTimer) {
-        window.clearInterval(state.bridgeWaitTimer);
-        state.bridgeWaitTimer = null;
-      }
     }
   }
 
@@ -462,11 +582,18 @@
       document.getElementById(id).disabled = true;
     });
     applyTheme(window.localStorage.getItem("sapProxyTheme") || "dark");
+    setBridgeDiagnostic("Starting desktop bridge", "Waiting for the Python API");
+    updateBridgeElapsed();
     initializeBridge();
-    state.bridgeWaitTimer = window.setInterval(initializeBridge, 250);
+    state.bridgeWaitTimer = window.setInterval(initializeBridge, 500);
+    state.bridgeElapsedTimer = window.setInterval(updateBridgeElapsed, 1000);
   }
 
-  window.addEventListener("pywebviewready", initializeBridge);
+  window.addEventListener("pywebviewready", () => {
+    state.bridgeStalled = false;
+    state.bridgeRetryAt = 0;
+    initializeBridge();
+  });
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", bootstrapUi, { once: true });
   } else {

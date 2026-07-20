@@ -416,6 +416,66 @@ button.secondary {
   color: var(--danger);
 }
 
+.bridge-diagnostic {
+  position: absolute;
+  z-index: 15;
+  top: 88px;
+  right: 28px;
+  display: none;
+  width: min(430px, calc(100% - 56px));
+  padding: 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.bridge-diagnostic.visible {
+  display: block;
+}
+
+.bridge-diagnostic-heading,
+.bridge-diagnostic-meta {
+  display: flex;
+  align-items: center;
+}
+
+.bridge-diagnostic-heading {
+  gap: 12px;
+}
+
+.bridge-diagnostic-heading strong,
+.bridge-diagnostic-heading small {
+  display: block;
+}
+
+.bridge-diagnostic-heading small {
+  margin-top: 4px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.bridge-diagnostic-meta {
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.bridge-diagnostic-meta code,
+.bridge-log-path {
+  color: var(--subtle);
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 11px;
+}
+
+.bridge-log-path {
+  display: block;
+  margin-top: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .view {
   display: none;
   height: calc(100% - 76px);

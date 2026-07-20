@@ -60,13 +60,16 @@ def run_headless(controller: AppController, autostart: bool) -> int:
 
 
 def run_desktop(controller: AppController, args: argparse.Namespace) -> int:
+    controller.events.info("Loading desktop renderer")
     try:
         import webview
     except ImportError:
+        controller.events.error("PyWebView is not installed")
         print("PyWebView is not installed. Install requirements-desktop.txt.", file=sys.stderr)
         return 2
 
     api = DesktopApi(controller)
+    controller.events.info("Creating desktop window")
     window = webview.create_window(
         "SAP B1 Proxy",
         str(resource_path("web/index.html")),
@@ -77,9 +80,12 @@ def run_desktop(controller: AppController, args: argparse.Namespace) -> int:
         background_color="#14181b",
         hidden=args.minimized,
     )
-    api.bind_window(window)
+    api._bind_window(window)
     tray = TrayIcon(controller)
     tray_available = tray.start()
+    controller.events.info(
+        "System tray initialized" if tray_available else "Continuing without system tray support"
+    )
     if args.minimized and not tray_available:
         window.show()
 
@@ -108,6 +114,11 @@ def run_desktop(controller: AppController, args: argparse.Namespace) -> int:
 
     window.events.closing += on_closing
 
+    def on_loaded() -> None:
+        controller.events.info("Desktop web interface loaded")
+
+    window.events.loaded += on_loaded
+
     if args.autostart:
         def delayed_start() -> None:
             time.sleep(1)
@@ -120,6 +131,11 @@ def run_desktop(controller: AppController, args: argparse.Namespace) -> int:
 
     try:
         renderer = "edgechromium" if sys.platform == "win32" else None
+        controller.events.info(
+            "Starting Microsoft Edge WebView2 renderer"
+            if renderer
+            else "Starting native desktop web renderer"
+        )
         webview.start(gui=renderer, debug=args.debug)
     except Exception as exc:
         message = (

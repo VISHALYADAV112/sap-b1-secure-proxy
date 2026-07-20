@@ -18,7 +18,8 @@ from .paths import app_data_dir
 class AppController:
     def __init__(self, config_root: Path | None = None):
         log_root = config_root or app_data_dir()
-        self.events = EventLog(log_path=log_root / "logs" / "proxy.log")
+        self.log_path = log_root / "logs" / "proxy.log"
+        self.events = EventLog(log_path=self.log_path)
         self.config_store = ConfigStore(config_root)
         try:
             self.config = self.config_store.load()

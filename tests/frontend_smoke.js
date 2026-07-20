@@ -87,6 +87,7 @@ elements.set("tunnelForm", new Element({ id: "tunnelForm", type: "form" }));
 elements.set("verifySsl", new Element({ id: "verifySsl", type: "checkbox", name: "sap_verify_ssl" }));
 
 const verifySsl = elements.get("verifySsl");
+const intervalCallbacks = [];
 const document = {
   readyState: "complete",
   documentElement: { dataset: {} },
@@ -122,10 +123,13 @@ const window = {
     setItem() {},
   },
   addEventListener() {},
-  setInterval() {
-    return 1;
+  setInterval(callback) {
+    intervalCallbacks.push(callback);
+    return intervalCallbacks.length;
   },
-  clearInterval() {},
+  clearInterval(id) {
+    intervalCallbacks[id - 1] = null;
+  },
   setTimeout(callback) {
     return setImmediate(callback);
   },
@@ -138,16 +142,56 @@ global.navigator = {};
 global.Node = { TEXT_NODE: 3 };
 vm.runInThisContext(fs.readFileSync("web/app.js", "utf8"), { filename: "web/app.js" });
 
-navButtons[1].click();
-assert(sections[1].classList.values.has("active"), "Connection tab did not activate");
-assert(!sections[0].classList.values.has("active"), "Dashboard tab remained active");
-assert(elements.get("startButton").disabled, "Start button was enabled before bridge initialization");
-assert(
-  elements.get("testConnectionButton").disabled,
-  "Test connection button was enabled before bridge initialization",
-);
-assert(
-  saveButtons.every((button) => !button.disabled),
-  "Save buttons must remain clickable so validation errors can be shown",
-);
-console.log("frontend navigation smoke test passed");
+async function run() {
+  navButtons[1].click();
+  assert(sections[1].classList.values.has("active"), "Connection tab did not activate");
+  assert(!sections[0].classList.values.has("active"), "Dashboard tab remained active");
+  assert(elements.get("startButton").disabled, "Start button was enabled before bridge initialization");
+  assert(
+    elements.get("testConnectionButton").disabled,
+    "Test connection button was enabled before bridge initialization",
+  );
+  assert(
+    saveButtons.every((button) => !button.disabled),
+    "Save buttons must remain clickable so validation errors can be shown",
+  );
+
+  window.pywebview = { api: {} };
+  await intervalCallbacks[0]();
+  assert(elements.get("startButton").disabled, "Partial bridge unexpectedly enabled controls");
+
+  let pingCalls = 0;
+  let initialStateCalls = 0;
+  window.pywebview.api.ping = async () => {
+    pingCalls += 1;
+    return { ok: true, platform: "Windows", log_path: "C:\\SAPB1Proxy\\proxy.log" };
+  };
+  window.pywebview.api.get_initial_state = async () => {
+    initialStateCalls += 1;
+    return {
+      ok: true,
+      platform: "Windows",
+      config: {},
+      busy: false,
+      running: false,
+      sap_connected: false,
+      tunnel_running: false,
+      startup_enabled: false,
+      logs: [],
+    };
+  };
+
+  await intervalCallbacks[0]();
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.strictEqual(pingCalls, 1, "Bridge handshake was not performed");
+  assert.strictEqual(initialStateCalls, 1, "Initial state was not requested");
+  assert(!elements.get("startButton").disabled, "Start button remained disabled after bridge initialization");
+  assert.strictEqual(elements.get("platformLabel").textContent, "Windows");
+  console.log("frontend navigation and bridge smoke test passed");
+}
+
+run().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
