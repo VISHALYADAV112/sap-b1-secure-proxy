@@ -11,7 +11,7 @@ from .platform_services import StartupError, get_startup_service
 from .powerbi import generate_m_code
 from .proxy_server import ProxyServer
 from .sap_client import SAPClient, SapError
-from .tunnel import TunnelError, TunnelManager
+from .tunnel import TunnelError, TunnelManager, remove_legacy_ngrok_config
 from .paths import app_data_dir
 
 
@@ -20,6 +20,13 @@ class AppController:
         log_root = config_root or app_data_dir()
         self.log_path = log_root / "logs" / "proxy.log"
         self.events = EventLog(log_path=self.log_path)
+        try:
+            if remove_legacy_ngrok_config(log_root):
+                self.events.info("Removed legacy plaintext ngrok configuration")
+        except OSError:
+            self.events.warning(
+                "Could not remove the legacy plaintext ngrok configuration"
+            )
         self.config_store = ConfigStore(config_root)
         try:
             self.config = self.config_store.load()
@@ -61,12 +68,9 @@ class AppController:
         return ""
 
     def initial_state(self) -> dict[str, Any]:
-        config = self.config.to_dict(include_secrets=True)
-        config["sap_password"] = ""
-        config["ngrok_authtoken"] = ""
         return {
             **self.state(),
-            "config": config,
+            "config": self._frontend_config(),
             "platform": __import__("platform").system(),
         }
 
@@ -102,10 +106,11 @@ class AppController:
             self.config = updated
             self._last_error = ""
             self.events.info("Configuration saved")
-            result = self.config.to_dict(include_secrets=True)
-            result["sap_password"] = ""
-            result["ngrok_authtoken"] = ""
-            return result
+            return self._frontend_config()
+
+    def get_api_key(self) -> str:
+        with self._lock:
+            return self.config.api_key
 
     def generate_api_key(self) -> str:
         with self._lock:
@@ -283,3 +288,14 @@ class AppController:
         with self._lock:
             self._last_error = message
         self.events.error(message)
+
+    def _frontend_config(self) -> dict[str, Any]:
+        config = self.config.to_dict(include_secrets=False)
+        config.update(
+            {
+                "sap_password_saved": bool(self.config.sap_password),
+                "api_key_saved": bool(self.config.api_key),
+                "ngrok_authtoken_saved": bool(self.config.ngrok_authtoken),
+            }
+        )
+        return config

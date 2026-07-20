@@ -163,6 +163,19 @@
         element.value = config[key] == null ? "" : config[key];
       }
     });
+    const sapPassword = document.querySelector('[name="sap_password"]');
+    const ngrokAuthtoken = document.querySelector('[name="ngrok_authtoken"]');
+    const apiKey = document.querySelector('[name="api_key"]');
+    sapPassword.value = "";
+    ngrokAuthtoken.value = "";
+    apiKey.value = "";
+    sapPassword.placeholder = config.sap_password_saved
+      ? "Stored securely; leave blank to keep"
+      : "Enter SAP password";
+    ngrokAuthtoken.placeholder = config.ngrok_authtoken_saved
+      ? "Stored securely; leave blank to keep"
+      : "Enter ngrok authtoken";
+    apiKey.placeholder = config.api_key_saved ? "Stored securely" : "Generated automatically";
     document.getElementById("powerBiEntity").value = config.default_entity || "Invoices";
     document.getElementById("powerBiSelect").value = config.default_select || "";
     updateTlsText();
@@ -448,8 +461,13 @@
     document.getElementById("copyCodeButton").addEventListener("click", () => {
       copyText(document.getElementById("powerBiCode").textContent, "Power BI code");
     });
-    document.getElementById("copyApiKeyButton").addEventListener("click", () => {
-      copyText(document.querySelector('[name="api_key"]').value, "API key");
+    document.getElementById("copyApiKeyButton").addEventListener("click", async () => {
+      try {
+        const result = await callApi("get_api_key");
+        await copyText(result.api_key, "API key");
+      } catch (error) {
+        showNotification(error.message, true);
+      }
     });
     document.querySelectorAll(".copy-button").forEach((button) => {
       button.addEventListener("click", () => {
@@ -460,9 +478,11 @@
 
     document.getElementById("rotateApiKeyButton").addEventListener("click", async () => {
       try {
-        const result = await callApi("generate_api_key");
-        state.config.api_key = result.api_key;
-        document.querySelector('[name="api_key"]').value = result.api_key;
+        await callApi("generate_api_key");
+        state.config.api_key_saved = true;
+        const apiKey = document.querySelector('[name="api_key"]');
+        apiKey.value = "";
+        apiKey.placeholder = "Stored securely";
         showNotification("API key rotated");
       } catch (error) {
         showNotification(error.message, true);

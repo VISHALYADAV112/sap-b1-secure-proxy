@@ -80,3 +80,18 @@ python main.py --headless --autostart
 - API keys must contain at least 32 characters.
 - Logs redact passwords, API keys, authorization values, and ngrok tokens.
 - SAP TLS verification is enabled by default.
+- Secret values are not preloaded into the desktop form or initial WebView state.
+- The API key is decrypted only for an explicit copy or Power BI code generation action.
+- ngrok receives its authtoken through its child-process environment; the app does not persist an `ngrok.yml` token file.
+
+On Windows, non-secret settings are stored in
+`%LOCALAPPDATA%\SAPB1Proxy\config.json`. The SAP password, proxy API key, and
+ngrok authtoken are stored in `%LOCALAPPDATA%\SAPB1Proxy\secrets.dat` using
+Windows DPAPI for the current user. A legacy plaintext `ngrok.yml` created by
+older builds is removed when the updated application opens.
+
+To completely reset a Windows installation, exit the tray application and run:
+
+```powershell
+Remove-Item "$env:LOCALAPPDATA\SAPB1Proxy" -Recurse -Force
+```

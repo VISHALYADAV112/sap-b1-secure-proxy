@@ -38,6 +38,15 @@ class TunnelError(RuntimeError):
     pass
 
 
+def remove_legacy_ngrok_config(root: Path) -> bool:
+    path = root / "ngrok.yml"
+    try:
+        path.unlink()
+    except FileNotFoundError:
+        return False
+    return True
+
+
 def platform_key() -> tuple[str, str]:
     system = platform.system()
     machine = platform.machine().lower()
@@ -54,7 +63,7 @@ class TunnelManager:
         self.bin_dir.mkdir(parents=True, exist_ok=True)
         executable_name = "ngrok.exe" if platform.system() == "Windows" else "ngrok"
         self.managed_binary = self.bin_dir / executable_name
-        self.ngrok_config = self.root / "ngrok.yml"
+        self.legacy_ngrok_config = self.root / "ngrok.yml"
         self._process: subprocess.Popen[str] | None = None
         self._reader_thread: threading.Thread | None = None
         self._public_url = ""
@@ -124,41 +133,16 @@ class TunnelManager:
         self.events.info("ngrok installed in the application data directory")
         return self.managed_binary
 
-    def configure(self, binary: Path) -> None:
-        command = [
-            str(binary),
-            "config",
-            "add-authtoken",
-            self.config.ngrok_authtoken,
-            "--config",
-            str(self.ngrok_config),
-        ]
-        result = subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            timeout=30,
-            check=False,
-            creationflags=_creation_flags(),
-        )
-        if result.returncode != 0:
-            detail = (result.stderr or result.stdout or "unknown error").strip().splitlines()[-1]
-            raise TunnelError(f"ngrok authtoken configuration failed: {detail}")
-        if self.ngrok_config.exists():
-            os.chmod(self.ngrok_config, 0o600)
-
     def start(self) -> str:
         if self.running:
             return self.public_url
         binary = self.ensure_binary()
-        self.configure(binary)
+        self._remove_legacy_config()
 
         command = [
             str(binary),
             "http",
             str(self.config.local_port),
-            "--config",
-            str(self.ngrok_config),
             "--log",
             "stdout",
             "--log-format",
@@ -175,6 +159,7 @@ class TunnelManager:
             text=True,
             bufsize=1,
             creationflags=_creation_flags(),
+            env=self._process_environment(),
         )
         self._reader_thread = threading.Thread(target=self._read_output, name="ngrok-output", daemon=True)
         self._reader_thread.start()
@@ -242,6 +227,19 @@ class TunnelManager:
             except ValueError:
                 if "error" in line.lower():
                     self.events.error(f"ngrok: {line[:240]}")
+
+    def _process_environment(self) -> dict[str, str]:
+        environment = os.environ.copy()
+        environment["NGROK_AUTHTOKEN"] = self.config.ngrok_authtoken
+        return environment
+
+    def _remove_legacy_config(self) -> None:
+        try:
+            remove_legacy_ngrok_config(self.root)
+        except OSError as exc:
+            raise TunnelError(
+                "Could not remove the legacy ngrok token file from application data"
+            ) from exc
 
 
 def _creation_flags() -> int:

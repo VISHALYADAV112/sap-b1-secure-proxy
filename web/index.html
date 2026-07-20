@@ -147,7 +147,7 @@
           <button id="testConnectionButton" class="command secondary">Test connection</button>
         </div>
 
-        <form id="connectionForm" class="settings-form">
+        <form id="connectionForm" class="settings-form" autocomplete="off">
           <div class="form-grid">
             <label class="field field-wide">
               <span>SAP server</span>
@@ -167,11 +167,11 @@
             </label>
             <label class="field">
               <span>Username</span>
-              <input name="sap_username" autocomplete="username" required>
+              <input name="sap_username" autocomplete="off" required>
             </label>
             <label class="field field-wide">
               <span>Password</span>
-              <input name="sap_password" type="password" autocomplete="current-password" required>
+              <input name="sap_password" type="password" autocomplete="new-password">
             </label>
           </div>
 
@@ -218,11 +218,11 @@
           <span class="section-status" id="ngrokBinaryStatus">ngrok not checked</span>
         </div>
 
-        <form id="tunnelForm" class="settings-form">
+        <form id="tunnelForm" class="settings-form" autocomplete="off">
           <div class="form-grid">
             <label class="field field-wide">
               <span>ngrok authtoken</span>
-              <input name="ngrok_authtoken" type="password" autocomplete="off">
+              <input name="ngrok_authtoken" type="password" autocomplete="new-password">
             </label>
             <label class="field">
               <span>Assigned domain</span>

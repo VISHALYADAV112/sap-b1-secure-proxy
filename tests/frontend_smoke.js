@@ -16,6 +16,14 @@ class ClassList {
     }
     return shouldAdd;
   }
+
+  add(name) {
+    this.values.add(name);
+  }
+
+  remove(name) {
+    this.values.delete(name);
+  }
 }
 
 class Element {
@@ -85,8 +93,18 @@ requiredIds.forEach((id) => elements.set(id, new Element({ id })));
 elements.set("connectionForm", new Element({ id: "connectionForm", type: "form" }));
 elements.set("tunnelForm", new Element({ id: "tunnelForm", type: "form" }));
 elements.set("verifySsl", new Element({ id: "verifySsl", type: "checkbox", name: "sap_verify_ssl" }));
+elements.set("sapPassword", new Element({ id: "sapPassword", type: "password", name: "sap_password" }));
+elements.set("ngrokAuthtoken", new Element({
+  id: "ngrokAuthtoken",
+  type: "password",
+  name: "ngrok_authtoken",
+}));
+elements.set("apiKey", new Element({ id: "apiKey", type: "password", name: "api_key" }));
 
 const verifySsl = elements.get("verifySsl");
+const sapPassword = elements.get("sapPassword");
+const ngrokAuthtoken = elements.get("ngrokAuthtoken");
+const apiKey = elements.get("apiKey");
 const intervalCallbacks = [];
 const document = {
   readyState: "complete",
@@ -110,6 +128,9 @@ const document = {
   },
   querySelector(selector) {
     if (selector === '[name="sap_verify_ssl"]') return verifySsl;
+    if (selector === '[name="sap_password"]') return sapPassword;
+    if (selector === '[name="ngrok_authtoken"]') return ngrokAuthtoken;
+    if (selector === '[name="api_key"]') return apiKey;
     return null;
   },
 };
@@ -180,6 +201,11 @@ async function run() {
       logs: [],
     };
   };
+  let apiKeyCalls = 0;
+  window.pywebview.api.get_api_key = async () => {
+    apiKeyCalls += 1;
+    return { ok: true, api_key: "synthetic-api-key" };
+  };
 
   await intervalCallbacks[0]();
   await new Promise((resolve) => setImmediate(resolve));
@@ -188,6 +214,13 @@ async function run() {
   assert.strictEqual(initialStateCalls, 1, "Initial state was not requested");
   assert(!elements.get("startButton").disabled, "Start button remained disabled after bridge initialization");
   assert.strictEqual(elements.get("platformLabel").textContent, "Windows");
+  assert.strictEqual(sapPassword.value, "", "SAP password was preloaded into the DOM");
+  assert.strictEqual(ngrokAuthtoken.value, "", "ngrok token was preloaded into the DOM");
+  assert.strictEqual(apiKey.value, "", "API key was preloaded into the DOM");
+
+  elements.get("copyApiKeyButton").click();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.strictEqual(apiKeyCalls, 1, "Copy did not request the API key explicitly");
   console.log("frontend navigation and bridge smoke test passed");
 }
 

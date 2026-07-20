@@ -136,7 +136,7 @@ def run_desktop(controller: AppController, args: argparse.Namespace) -> int:
             if renderer
             else "Starting native desktop web renderer"
         )
-        webview.start(gui=renderer, debug=args.debug)
+        webview.start(gui=renderer, debug=args.debug, private_mode=True)
     except Exception as exc:
         message = (
             "The desktop renderer could not start. "

@@ -44,8 +44,11 @@ class DesktopApi:
     def save_config(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self._call(lambda: {"config": self._controller.save_config(payload)})
 
+    def get_api_key(self) -> dict[str, Any]:
+        return self._call(lambda: {"api_key": self._controller.get_api_key()})
+
     def generate_api_key(self) -> dict[str, Any]:
-        return self._call(lambda: {"api_key": self._controller.generate_api_key()})
+        return self._call(lambda: {"rotated": bool(self._controller.generate_api_key())})
 
     def test_connection(self) -> dict[str, Any]:
         return self._call(self._controller.test_connection)
