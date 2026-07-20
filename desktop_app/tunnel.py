@@ -91,7 +91,8 @@ class TunnelManager:
                     raise TunnelError("ngrok download is larger than the allowed limit")
                 content = response.read(100 * 1024 * 1024 + 1)
         except (OSError, urllib.error.URLError) as exc:
-            raise TunnelError(f"ngrok download failed: {exc.__class__.__name__}") from exc
+            reason = getattr(exc, "reason", exc)
+            raise TunnelError(f"ngrok download failed: {reason}") from exc
         if len(content) > 100 * 1024 * 1024:
             raise TunnelError("ngrok download is larger than the allowed limit")
         archive_path.write_bytes(content)
