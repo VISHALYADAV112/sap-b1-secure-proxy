@@ -107,6 +107,7 @@ class ProxyServer:
         @app.route("/api/<path:entity>", methods=["GET", "HEAD"])
         @app.route("/<entity>", methods=["GET", "HEAD"])
         def proxy_entity(entity: str) -> Response:
+            entity = entity.rstrip("/")
             request_id = uuid.uuid4().hex[:12]
             provided_key = self._extract_api_key()
             if not self._valid_api_key(provided_key):
